@@ -11,16 +11,20 @@ import tensorflow as tf
 import tensorflow_hub as hub
 
 
+# NOTE: YAMNet probabilities for impact-like events are typically well below
+# 0.5, so the CLI now defaults to a lower threshold (0.15) to make detections
+# easier to surface.  Users can always raise the threshold if they get too many
+# false positives.
 DEFAULT_IMPACT_KEYWORDS = (
-    "impact",
-    "collision",
-    "crash",
-    "smash",
-    "bang",
-    "hit",
-    "thump",
-    "thud",
-    "slam",
+    "Slap, smack",
+    "Whack, thwack",
+    "Knock",
+    "Cap gun",
+    "Gunshot, gunfire",
+    "Clapping",
+    "Hands",
+    "Crack",
+    "Wood",
 )
 
 
@@ -30,6 +34,14 @@ class ImpactDetectionResult:
 
     timestamp: float
     confidence: float
+
+
+@dataclass
+class ImpactDetectionSummary:
+    """Aggregate information about detections produced for a waveform."""
+
+    detections: List[ImpactDetectionResult]
+    max_confidence: float
 
 
 class YamnetImpactDetector:
@@ -78,15 +90,15 @@ class YamnetImpactDetector:
         except AttributeError:  # pragma: no cover - default from YAMNet paper
             return 0.48
 
-    def detect_impacts(
+    def summarize_impacts(
         self,
         waveform: np.ndarray,
         sample_rate: int | None = None,
-        threshold: float = 0.5,
+        threshold: float = 0.15,
         smoothing_seconds: float = 0.25,
         min_gap_seconds: float = 0.2,
-    ) -> List[ImpactDetectionResult]:
-        """Run impact detection on ``waveform``.
+    ) -> ImpactDetectionSummary:
+        """Run impact detection on ``waveform`` and return a summary.
 
         Parameters
         ----------
@@ -130,10 +142,33 @@ class YamnetImpactDetector:
             smoothed_scores, threshold, min_gap_seconds
         )
 
-        return [
+        detections = [
             ImpactDetectionResult(timestamp=ts, confidence=float(smoothed_scores[idx]))
             for idx, ts in timestamps
         ]
+
+        max_confidence = float(np.max(smoothed_scores)) if smoothed_scores.size else 0.0
+
+        return ImpactDetectionSummary(detections=detections, max_confidence=max_confidence)
+
+    def detect_impacts(
+        self,
+        waveform: np.ndarray,
+        sample_rate: int | None = None,
+        threshold: float = 0.15,
+        smoothing_seconds: float = 0.25,
+        min_gap_seconds: float = 0.2,
+    ) -> List[ImpactDetectionResult]:
+        """Return only the list of detections for backwards compatibility."""
+
+        summary = self.summarize_impacts(
+            waveform,
+            sample_rate=sample_rate,
+            threshold=threshold,
+            smoothing_seconds=smoothing_seconds,
+            min_gap_seconds=min_gap_seconds,
+        )
+        return summary.detections
 
     def _smooth_scores(self, scores: np.ndarray, smoothing_seconds: float) -> np.ndarray:
         if smoothing_seconds <= 0:

@@ -8,7 +8,11 @@ from pathlib import Path
 from typing import Sequence
 
 from .audio_utils import extract_audio_waveform
-from .classifier import DEFAULT_IMPACT_KEYWORDS, ImpactDetectionResult, YamnetImpactDetector
+from .classifier import (
+    DEFAULT_IMPACT_KEYWORDS,
+    ImpactDetectionResult,
+    YamnetImpactDetector,
+)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -17,8 +21,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.5,
-        help="Score threshold for classifying an impact (default: 0.5)",
+        default=0.15,
+        help=(
+            "Score threshold for classifying an impact (default: 0.15). "
+            "Raise this if you receive too many false positives."
+        ),
     )
     parser.add_argument(
         "--smoothing",
@@ -63,7 +70,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     audio = extract_audio_waveform(args.video)
     detector = YamnetImpactDetector(impact_keywords=args.keywords)
-    detections = detector.detect_impacts(
+    summary = detector.summarize_impacts(
         audio.waveform,
         sample_rate=audio.sample_rate,
         threshold=args.threshold,
@@ -71,6 +78,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         min_gap_seconds=args.min_gap,
     )
 
+    detections = summary.detections
     detection_dicts = format_detections(detections)
 
     if args.output:
@@ -80,6 +88,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         for det in detection_dicts:
             print(f"{det['timestamp']:.3f}s\tconfidence={det['confidence']:.3f}")
+
+    if not detections:
+        print(
+            "No impacts exceeded the threshold. Max confidence was"
+            f" {summary.max_confidence:.3f}. Consider lowering --threshold "
+            "or adjusting --keywords if you expected detections.",
+        )
 
     return 0
 
