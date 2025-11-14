@@ -1,0 +1,4 @@
+tensorflow>=2.10
+tensorflow-hub>=0.12
+librosa>=0.10
+numpy>=1.23
