@@ -1,5 +1,4 @@
 tensorflow>=2.10
 tensorflow-hub>=0.12
 librosa>=0.10
-moviepy>=1.0.3
 numpy>=1.23

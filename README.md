@@ -39,9 +39,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-TensorFlow requires additional system dependencies (e.g., libsndfile for
-librosa and FFmpeg for MoviePy).  Refer to the respective project documentation
-if you encounter import errors.
+TensorFlow and the audio extraction helper rely on external system libraries.
+Ensure that `libsndfile` (used by librosa) and `ffmpeg` are installed and
+available on your `PATH`.  Refer to the respective project documentation if you
+encounter import errors.
 
 ## Next steps
 
